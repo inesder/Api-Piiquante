@@ -29,6 +29,69 @@ exports.createSauce = (req, res, next) => {
     );
 };
 
+exports.likeSauce = (req, res, next) => {
+    const userId = req.auth.userId;
+    const sauceId = req.params.id;
+    const likeValue = req.body.like;
+  
+    Sauce.findOne({ _id: sauceId })
+      .then((sauce) => {
+        if (!sauce) {
+          throw new Error('Sauce not found');
+        }
+  
+        // Vérifier si l'utilisateur a déjà liké ou disliké la sauce
+        const userLiked = sauce.usersLiked.includes(userId);
+        const userDisliked = sauce.usersDisliked.includes(userId);
+  
+        if (likeValue === 1) {
+          // L'utilisateur aime la sauce
+          if (!userLiked) {
+            sauce.likes++;
+            sauce.usersLiked.push(userId);
+          }
+          if (userDisliked) {
+            sauce.dislikes--;
+            const index = sauce.usersDisliked.indexOf(userId);
+            sauce.usersDisliked.splice(index, 1);
+          }
+        } else if (likeValue === -1) {
+          // L'utilisateur n'aime pas la sauce
+          if (!userDisliked) {
+            sauce.dislikes++;
+            sauce.usersDisliked.push(userId);
+          }
+          if (userLiked) {
+            sauce.likes--;
+            const index = sauce.usersLiked.indexOf(userId);
+            sauce.usersLiked.splice(index, 1);
+          }
+        } else if (likeValue === 0) {
+          // L'utilisateur annule son like ou dislike
+          if (userLiked) {
+            sauce.likes--;
+            const index = sauce.usersLiked.indexOf(userId);
+            sauce.usersLiked.splice(index, 1);
+          }
+          if (userDisliked) {
+            sauce.dislikes--;
+            const index = sauce.usersDisliked.indexOf(userId);
+            sauce.usersDisliked.splice(index, 1);
+          }
+        } else {
+          throw new Error('Invalid like value');
+        }
+  
+        return sauce.save();
+      })
+      .then((updatedSauce) => {
+        res.status(200).json(updatedSauce);
+      })
+      .catch((error) => {
+        res.status(400).json({ error: error.message });
+      });
+  };
+
 exports.getOneSauce = (req, res, next) => {
     Sauce.findOne({
         _id: req.params.id
